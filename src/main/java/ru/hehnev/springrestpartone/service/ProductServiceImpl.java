@@ -1,29 +1,34 @@
 package ru.hehnev.springrestpartone.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import ru.hehnev.springrestpartone.dao.ProductDao;
-import ru.hehnev.springrestpartone.dao.specification.ProductSpecification;
+import org.springframework.transaction.annotation.Transactional;
+import ru.hehnev.springrestpartone.repositories.dao.ProductDao;
+import ru.hehnev.springrestpartone.repositories.specification.ProductSpecification;
 import ru.hehnev.springrestpartone.exceptions.ExistEntityException;
 import ru.hehnev.springrestpartone.exceptions.ResourceNotFoundException;
+import ru.hehnev.springrestpartone.mappers.ProductMapper;
+import ru.hehnev.springrestpartone.model.dto.ProductDto;
 import ru.hehnev.springrestpartone.model.entitys.Product;
+import ru.hehnev.springrestpartone.validators.ProductValidator;
 
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
+@Transactional
 public class ProductServiceImpl implements ProductService {
 
-    private ProductDao productDao;
-
-    @Autowired
-    public void setProductDao(ProductDao productDao) {
-        this.productDao = productDao;
-    }
+    private final ProductDao productDao;
+    private final ProductValidator productValidator;
 
     @Override
-    public Page<Product> getAllProducts(Integer numPage, Integer sizePage, Integer minPrice, Integer maxPrice, String title) {
+    @Transactional(readOnly = true)
+    public Page<ProductDto> getAllProducts(Integer numPage, Integer sizePage, Integer minPrice, Integer maxPrice, String title) {
         if (numPage < 1) numPage = 1;
         if (sizePage < 1) sizePage = 1;
         Specification<Product> specification = Specification.where(null);
@@ -36,28 +41,35 @@ public class ProductServiceImpl implements ProductService {
         if (title != null) {
             specification = specification.and(ProductSpecification.likeTitle(title));
         }
-        return productDao.findAll(specification, PageRequest.of(numPage - 1, sizePage));
+        return ProductMapper.MAPPER.fromProductPage(
+                productDao.findAll(specification, PageRequest.of(numPage - 1, sizePage)));
     }
 
     @Override
-    public Product getProductById(Long id) {
-        return productDao
+    public ProductDto getProductById(Long id) {
+        return ProductMapper.MAPPER.fromProductDto(productDao
                 .findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product with id: " + id + "is not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product with id: " + id + "is not found")));
     }
 
     @Override
-    public Product saveOrUpdate(Product product) {
+    public ProductDto saveOrUpdate(ProductDto product) {
+        log.info(product.toString());
+        productValidator.validate(product);
         if (product.getId() == null) {
             if (productDao.existsProductByTitle(product.getTitle())) {
-                throw new ExistEntityException("This product is already");
+                throw new ExistEntityException("This product already exists");
             }
         }
-        return productDao.save(product);
+        if (!productDao.existsProductById(product.getId())) {
+            throw new ResourceNotFoundException("Product with id: " + product.getId() + " is not found");
+        }
+        return ProductMapper.MAPPER.fromProductDto(productDao.save(ProductMapper.MAPPER.toProduct(product)));
     }
 
     @Override
     public void deleteProductById(Long id) {
+        log.info("delete product by id {}", id);
         productDao.deleteById(id);
     }
 }

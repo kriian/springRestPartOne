@@ -1,4 +1,4 @@
-package ru.hehnev.springrestpartone.dao.specification;
+package ru.hehnev.springrestpartone.repositories.specification;
 
 import org.springframework.data.jpa.domain.Specification;
 import ru.hehnev.springrestpartone.model.entitys.Product;
