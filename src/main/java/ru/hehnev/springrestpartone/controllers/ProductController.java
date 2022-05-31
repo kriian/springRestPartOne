@@ -1,25 +1,31 @@
 package ru.hehnev.springrestpartone.controllers;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.view.RedirectView;
+import ru.hehnev.springrestpartone.model.dto.ProductDto;
 import ru.hehnev.springrestpartone.model.entitys.Product;
+import ru.hehnev.springrestpartone.service.CartService;
 import ru.hehnev.springrestpartone.service.ProductService;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/v1/products")
 public class ProductController {
 
-    private ProductService productService;
-
-    @Autowired
-    public void setProductService(ProductService productService) {
-        this.productService = productService;
-    }
+    private final ProductService productService;
+    private final CartService cartService;
 
     @GetMapping
-    public Page<Product> getAllProducts(@RequestParam(name = "np" ,defaultValue = "1") Integer numPage,
+    public Page<ProductDto> getAllProducts(@RequestParam(name = "np" ,defaultValue = "1") Integer numPage,
                                         @RequestParam(name = "sp", defaultValue = "5") Integer sizePage,
                                         @RequestParam(name = "min", required = false) Integer minPrice,
                                         @RequestParam(name = "max", required = false) Integer maxPrice,
@@ -28,17 +34,23 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    public Product getProductById(@PathVariable Long id) {
+    public ProductDto getProductById(@PathVariable Long id) {
         return productService.getProductById(id);
     }
 
     @PostMapping
-    public Product addProduct(@RequestBody Product product) {
+    public ProductDto addProduct(@RequestBody ProductDto product) {
         return productService.saveOrUpdate(product);
     }
 
+    @RequestMapping("/add_cart/{id}")
+    public RedirectView addProductToCart(@PathVariable Long id) throws IOException {
+        cartService.addProduct(getProductById(id));
+        return new RedirectView("/app/api/v1/products/cart");
+    }
+
     @PutMapping(consumes = {MediaType.APPLICATION_JSON_VALUE})
-    public Product updateProduct(@RequestBody Product product) {
+    public ProductDto updateProduct(@RequestBody ProductDto product) {
         return productService.saveOrUpdate(product);
     }
 
