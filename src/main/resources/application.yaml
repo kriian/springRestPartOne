@@ -2,6 +2,8 @@ server:
   port: 8189
   servlet:
     context-path: /app
+    session:
+      timeout: 60s
 spring:
   datasource:
     driver-class-name: org.postgresql.Driver
